@@ -1,4 +1,4 @@
-import { Component } from 'react';
+import { useState, useEffect } from 'react';
 import { Searchbar } from './Searchbar';
 import { ImageGallery } from './ImageGallery';
 import { fetchPhotosByQuery } from 'services/PixabayApi';
@@ -8,93 +8,92 @@ import { Modal } from './Modal';
 
 const DEFAULT_PAGE_NUM = 1;
 
-export class Gallery extends Component {
-  state = {
-    images: [],
-    currentImage: null,
-    page: DEFAULT_PAGE_NUM,
-    loading: false,
-    error: null,
-    searchQuery: '',
-    totalHits: null,
-    isOpenModal: false,
-  };
+export const Gallery = () => {
+  const [images, setImages] = useState([]);
+  const [currentImage, setCurrentImage] = useState(null);
+  const [page, setPage] = useState(DEFAULT_PAGE_NUM);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [totalHits, setTotalHits] = useState(null);
+  const [isOpenModal, setIsOpenModal] = useState(false);
 
-  async componentDidUpdate(_, prevState) {
-    const { searchQuery, page } = this.state;
-
-    if (prevState.searchQuery !== searchQuery || prevState.page !== page) {
+  useEffect(() => {
+    const fetchData = async () => {
+      if (!searchQuery) return;
       try {
-        this.setState({ loading: true, error: null });
+        setLoading(true);
+        setError(null);
+
         const { hits, totalHits } = await fetchPhotosByQuery({
           q: searchQuery,
           page,
         });
-        this.setState(prevState => ({
-          images:
-            page === DEFAULT_PAGE_NUM ? hits : [...prevState.images, ...hits],
-          totalHits,
-        }));
+
+        setImages(prevState =>
+          page === DEFAULT_PAGE_NUM ? hits : [...prevState, ...hits]
+        );
+        setTotalHits(totalHits);
       } catch (error) {
-        this.setState({ error: error.message });
+        setError(error.message);
       } finally {
-        this.setState({ loading: false });
+        setLoading(false);
       }
-    }
-  }
+    };
+    fetchData();
+  }, [searchQuery, page]);
 
-  handleSetSearchQuery = text => {
-    this.setState({ searchQuery: text, images: [], page: DEFAULT_PAGE_NUM });
+  const handleSetSearchQuery = text => {
+    setSearchQuery(text);
+    setImages([]);
+    setPage(DEFAULT_PAGE_NUM);
   };
 
-  handleLoadMore = () => {
-    this.setState(prevState => ({ page: prevState.page + 1 }));
+  const handleLoadMore = () => {
+    setPage(prevState => prevState + 1);
   };
 
-  handleClickImage = image => {
-    this.setState({ currentImage: image, isOpenModal: true });
+  const handleClickImage = image => {
+    setCurrentImage(image);
+    setIsOpenModal(true);
   };
 
-  handleToggleModal = () => {
-    this.setState(prevState => ({ isOpenModal: !prevState.isOpenModal }));
+  const handleToggleModal = () => {
+    setIsOpenModal(prevState => !prevState);
   };
 
-  render() {
-    const { images, currentImage, totalHits, loading, isOpenModal, error } =
-      this.state;
-    const totalImagesLoaded = images.length;
-    return (
-      <div>
-        <Searchbar handleSetSearchQuery={this.handleSetSearchQuery} />
-        {loading && !totalImagesLoaded && (
-          <div
-            style={{
-              margin: '0 auto',
-              display: 'flex',
-              justifyContent: 'center',
-            }}
-          >
-            <InfinitySpin
-              visible={true}
-              height="180"
-              width="180"
-              ariaLabel="comment-loading"
-              wrapperStyle={{}}
-              wrapperClass="comment-wrapper"
-            />
-          </div>
-        )}
-        {error && <h2 className="Error-Message">{error}</h2>}
+  const totalImagesLoaded = images.length;
+  return (
+    <div>
+      <Searchbar handleSetSearchQuery={handleSetSearchQuery} />
+      {loading && !totalImagesLoaded && (
+        <div
+          style={{
+            margin: '0 auto',
+            display: 'flex',
+            justifyContent: 'center',
+          }}
+        >
+          <InfinitySpin
+            visible={true}
+            height="180"
+            width="180"
+            ariaLabel="comment-loading"
+            wrapperStyle={{}}
+            wrapperClass="comment-wrapper"
+          />
+        </div>
+      )}
+      {error && <h2 className="Error-Message">{error}</h2>}
 
-        <ImageGallery images={images} onClickImage={this.handleClickImage} />
+      <ImageGallery images={images} onClickImage={handleClickImage} />
 
-        {totalImagesLoaded && totalImagesLoaded < totalHits ? (
-          <Button loading={loading} handleLoadMore={this.handleLoadMore} />
-        ) : null}
-        {isOpenModal ? (
-          <Modal image={currentImage} closeModal={this.handleToggleModal} />
-        ) : null}
-      </div>
-    );
-  }
-}
+      {totalImagesLoaded && totalImagesLoaded < totalHits ? (
+        <Button loading={loading} handleLoadMore={handleLoadMore} />
+      ) : null}
+      {isOpenModal ? (
+        <Modal image={currentImage} closeModal={handleToggleModal} />
+      ) : null}
+    </div>
+  );
+};
